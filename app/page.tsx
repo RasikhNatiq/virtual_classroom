@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useGsapReveal } from "@/hooks/use-gsap-reveal";
@@ -56,6 +57,34 @@ const testimonials = [
     role: "Student",
     quote:
       "Joining class is simple and I can always check my attendance percentage before exams.",
+  },
+];
+
+const teamMembers = [
+  {
+    name: "Samar Sohail",
+    id: "B01828989",
+    image: "/samar.jpeg",
+  },
+  {
+    name: "Olawale Raheem Amusa",
+    id: "B01829034",
+    image: "/olawale.jpeg",
+  },
+  {
+    name: "Muhammad Waleed Khan",
+    id: "B01829210",
+    image: "/waleed.jpeg",
+  },
+  {
+    name: "Sayeed Afridi Sajal",
+    id: "B01830564",
+    image: "/sayeed.jpeg",
+  },
+  {
+    name: "Muhammad Ahsar",
+    id: "B01830405",
+    image: "/ahsar.jpeg",
   },
 ];
 
@@ -209,6 +238,36 @@ export default function Home() {
                 <p className="text-base italic text-slate-700">&quot;{testimonial.quote}&quot;</p>
                 <p className="mt-4 text-sm font-bold text-slate-900">{testimonial.name}</p>
                 <p className="text-xs text-slate-500">{testimonial.role}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6">
+          <div className="landing-reveal mb-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Team</p>
+            <h2 className="mt-2 text-3xl font-extrabold">Meet the brilliant minds behind this</h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+            {teamMembers.map((member) => (
+              <article
+                className="landing-reveal group rounded-3xl border border-slate-200 bg-white overflow-hidden shadow-sm transition-all hover:shadow-lg hover:-translate-y-1"
+                key={member.id}
+              >
+                <div className="relative h-72 w-full overflow-hidden bg-gradient-to-br from-cyan-100 to-slate-100">
+                  <Image
+                    src={member.image}
+                    alt={member.name}
+                    width={400}
+                    height={400}
+                    className="h-full w-full object-cover transition-transform group-hover:scale-110"
+                  />
+                </div>
+                <div className="p-6">
+                  <h3 className="text-lg font-bold text-slate-900">{member.name}</h3>
+                  <p className="mt-2 text-sm font-semibold text-cyan-700">{member.id}</p>
+                </div>
               </article>
             ))}
           </div>
