@@ -1,3 +1,4 @@
+// Kept for backward compatibility with auth-context
 export type UserRole = "teacher" | "student";
 
 export type User = {
@@ -10,17 +11,15 @@ export type User = {
 
 export type AttendanceRecord = {
   date: string;
-  present: string[];
-  absent: string[];
+  attendees: string[]; // names of attendees who marked present
 };
 
 export type Classroom = {
   id: string;
   name: string;
   subject: string;
-  teacherId: string;
   code: string;
-  students: string[];
+  professor: string;
   attendance: AttendanceRecord[];
 };
 

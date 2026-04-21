@@ -19,7 +19,7 @@ export function AppShell({ children }: AppShellProps) {
   useGsapReveal(".shell-content", [pathname], { y: 10, duration: 0.35, stagger: 0.03 });
 
   return (
-    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top_left,_#ecfeff,_transparent_60%),radial-gradient(circle_at_bottom_right,_#eff6ff,_transparent_55%)]">
+    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top_left,#ecfeff,transparent_60%),radial-gradient(circle_at_bottom_right,#eff6ff,transparent_55%)]">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       <div className="flex min-h-screen flex-1 flex-col">

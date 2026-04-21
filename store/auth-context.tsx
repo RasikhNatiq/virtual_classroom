@@ -12,6 +12,7 @@ type AuthContextValue = {
   currentUser: User | null;
   isReady: boolean;
   isAuthenticated: boolean;
+  quickStart: (input: { name: string; role: UserRole }) => void;
   signup: (input: {
     name: string;
     email: string;
@@ -30,6 +31,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getData<User | null>(STORAGE_KEYS.currentUser, null),
   );
   const [isReady] = useState(true);
+
+  const quickStart = useCallback(
+    ({ name, role }: { name: string; role: UserRole }) => {
+      const trimmedName = name.trim();
+      const newUser: User = {
+        id: createId("user"),
+        name: trimmedName,
+        email: "",
+        password: "",
+        role,
+      };
+      const nextUsers = [...users, newUser];
+      setUsers(nextUsers);
+      setCurrentUser(newUser);
+      setData(STORAGE_KEYS.users, nextUsers);
+      setData(STORAGE_KEYS.currentUser, newUser);
+    },
+    [users],
+  );
 
   const signup = useCallback(
     async ({ name, email, password, role }: { name: string; email: string; password: string; role: UserRole }) => {
@@ -88,11 +108,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       currentUser,
       isReady,
       isAuthenticated: Boolean(currentUser),
+      quickStart,
       signup,
       login,
       logout,
     }),
-    [currentUser, isReady, login, logout, signup, users],
+    [currentUser, isReady, login, logout, quickStart, signup, users],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

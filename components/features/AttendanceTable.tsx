@@ -1,103 +1,73 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import gsap from "gsap";
 
-import type { Classroom, User } from "@/types";
+import type { Classroom } from "@/types";
 import { todayDateISO } from "@/utils/helpers";
-import { Button } from "@/components/ui/Button";
 
 type AttendanceTableProps = {
   classroom: Classroom;
-  users: User[];
-  canEdit: boolean;
-  onSave?: (presentStudentIds: string[]) => void;
 };
 
-export function AttendanceTable({ classroom, users, canEdit, onSave }: AttendanceTableProps) {
+export function AttendanceTable({ classroom }: AttendanceTableProps) {
   const today = todayDateISO();
-  const existing = classroom.attendance.find((record) => record.date === today);
-  const [selected, setSelected] = useState<string[]>(existing?.present ?? []);
-
-  const studentUsers = users.filter((user) => classroom.students.includes(user.id));
+  const sortedRecords = [...classroom.attendance].sort((a, b) => b.date.localeCompare(a.date));
 
   useEffect(() => {
     gsap.fromTo(
       ".attendance-row",
-      { autoAlpha: 0, y: 12 },
-      { autoAlpha: 1, y: 0, duration: 0.35, stagger: 0.05, ease: "power2.out" },
+      { autoAlpha: 0, y: 10 },
+      { autoAlpha: 1, y: 0, duration: 0.3, stagger: 0.04, ease: "power2.out" },
     );
-  }, [classroom.id, classroom.students.length]);
-
-  const toggle = (studentId: string) => {
-    setSelected((prev) =>
-      prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId],
-    );
-  };
+  }, [classroom.id, classroom.attendance.length]);
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">Today&apos;s Attendance</h3>
-          <p className="text-sm text-slate-500">{today}</p>
-        </div>
-        {canEdit && onSave ? (
-          <Button onClick={() => onSave(selected)} type="button" variant="primary">
-            Save attendance
-          </Button>
-        ) : null}
-      </div>
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="mb-4 text-lg font-semibold text-slate-900">Attendance History</h3>
 
-      {studentUsers.length === 0 ? (
+      {sortedRecords.length === 0 ? (
         <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-          No students have joined this class yet.
+          No attendance records yet. Be the first to mark present!
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-left">
             <thead>
               <tr className="border-b border-slate-100 text-xs uppercase tracking-wider text-slate-500">
-                <th className="px-3 py-2">Student</th>
-                <th className="px-3 py-2">Email</th>
-                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Date</th>
+                <th className="px-3 py-2">Attendees</th>
+                <th className="px-3 py-2 text-right">Count</th>
               </tr>
             </thead>
             <tbody>
-              {studentUsers.map((student) => {
-                const present = selected.includes(student.id);
-                return (
-                  <tr className="attendance-row border-b border-slate-100" key={student.id}>
-                    <td className="px-3 py-3 font-medium text-slate-800">{student.name}</td>
-                    <td className="px-3 py-3 text-sm text-slate-600">{student.email}</td>
-                    <td className="px-3 py-3">
-                      {canEdit ? (
-                        <button
-                          className={`rounded-xl px-3 py-1.5 text-xs font-semibold ${
-                            present
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-rose-100 text-rose-700"
-                          }`}
-                          onClick={() => toggle(student.id)}
-                          type="button"
-                        >
-                          {present ? "Present" : "Absent"}
-                        </button>
-                      ) : (
+              {sortedRecords.map((record) => (
+                <tr className="attendance-row border-b border-slate-100" key={record.date}>
+                  <td className="px-3 py-3 font-medium text-slate-800">
+                    {record.date}
+                    {record.date === today ? (
+                      <span className="ml-2 rounded-lg bg-cyan-100 px-2 py-0.5 text-xs font-semibold text-cyan-700">
+                        Today
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-3 text-sm text-slate-600">
+                    <div className="flex flex-wrap gap-1">
+                      {record.attendees.map((name) => (
                         <span
-                          className={`rounded-xl px-3 py-1.5 text-xs font-semibold ${
-                            present
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-rose-100 text-rose-700"
-                          }`}
+                          className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                          key={name}
                         >
-                          {present ? "Present" : "Absent"}
+                          {name}
                         </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 text-right text-sm font-bold text-slate-800">
+                    {record.attendees.length}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

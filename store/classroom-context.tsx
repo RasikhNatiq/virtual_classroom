@@ -2,161 +2,70 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
-import { STORAGE_KEYS } from "@/lib/constants";
+import { PREDEFINED_CLASSES, STORAGE_KEYS } from "@/lib/constants";
 import type { AttendanceRecord, Classroom } from "@/types";
-import { createClassCode, createId, todayDateISO } from "@/utils/helpers";
+import { todayDateISO } from "@/utils/helpers";
 import { getData, setData } from "@/utils/storage";
+
+type AttendanceStore = Record<string, AttendanceRecord[]>;
 
 type ClassroomContextValue = {
   classes: Classroom[];
   isReady: boolean;
-  createClass: (input: { name: string; subject: string; teacherId: string }) => Classroom;
-  joinClassByCode: (input: { code: string; studentId: string }) => { ok: boolean; message: string };
-  markAttendanceByTeacher: (input: { classId: string; date: string; presentStudentIds: string[] }) => void;
-  markSelfPresent: (input: { classId: string; studentId: string }) => { ok: boolean; message: string };
+  markSelfPresent: (input: { classId: string; name: string }) => { ok: boolean; message: string };
   getClassById: (id: string) => Classroom | undefined;
-  getClassesForTeacher: (teacherId: string) => Classroom[];
-  getClassesForStudent: (studentId: string) => Classroom[];
 };
 
 const ClassroomContext = createContext<ClassroomContextValue | null>(null);
 
-function upsertAttendance(records: AttendanceRecord[], nextRecord: AttendanceRecord): AttendanceRecord[] {
-  const existingIndex = records.findIndex((record) => record.date === nextRecord.date);
-  if (existingIndex === -1) {
-    return [...records, nextRecord];
-  }
-
-  const copy = [...records];
-  copy[existingIndex] = nextRecord;
-  return copy;
+function buildClasses(store: AttendanceStore): Classroom[] {
+  return PREDEFINED_CLASSES.map((base) => ({
+    ...base,
+    attendance: store[base.id] ?? [],
+  }));
 }
 
 export function ClassroomProvider({ children }: { children: React.ReactNode }) {
-  const [classes, setClasses] = useState<Classroom[]>(() => getData<Classroom[]>(STORAGE_KEYS.classes, []));
+  const [attendanceStore, setAttendanceStore] = useState<AttendanceStore>(() =>
+    getData<AttendanceStore>(STORAGE_KEYS.attendance, {}),
+  );
   const [isReady] = useState(true);
 
-  const persist = useCallback((next: Classroom[]) => {
-    setClasses(next);
-    setData(STORAGE_KEYS.classes, next);
+  const classes = useMemo(() => buildClasses(attendanceStore), [attendanceStore]);
+
+  const persist = useCallback((next: AttendanceStore) => {
+    setAttendanceStore(next);
+    setData(STORAGE_KEYS.attendance, next);
   }, []);
 
-  const createClass = useCallback(
-    ({ name, subject, teacherId }: { name: string; subject: string; teacherId: string }) => {
-      let code = createClassCode();
-      while (classes.some((item) => item.code === code)) {
-        code = createClassCode();
-      }
-
-      const classroom: Classroom = {
-        id: createId("class"),
-        name: name.trim(),
-        subject: subject.trim(),
-        teacherId,
-        code,
-        students: [],
-        attendance: [],
-      };
-
-      persist([...classes, classroom]);
-      return classroom;
-    },
-    [classes, persist],
-  );
-
-  const joinClassByCode = useCallback(
-    ({ code, studentId }: { code: string; studentId: string }) => {
-      const normalizedCode = code.trim().toUpperCase();
-      const target = classes.find((item) => item.code === normalizedCode);
-
-      if (!target) {
-        return { ok: false, message: "Class code not found." };
-      }
-
-      if (target.students.includes(studentId)) {
-        return { ok: false, message: "You are already enrolled in this class." };
-      }
-
-      const next = classes.map((item) => {
-        if (item.id !== target.id) {
-          return item;
-        }
-        return {
-          ...item,
-          students: [...item.students, studentId],
-        };
-      });
-
-      persist(next);
-      return { ok: true, message: `Joined ${target.name}.` };
-    },
-    [classes, persist],
-  );
-
-  const markAttendanceByTeacher = useCallback(
-    ({ classId, date, presentStudentIds }: { classId: string; date: string; presentStudentIds: string[] }) => {
-      const next = classes.map((item) => {
-        if (item.id !== classId) {
-          return item;
-        }
-
-        const present = item.students.filter((studentId) => presentStudentIds.includes(studentId));
-        const absent = item.students.filter((studentId) => !present.includes(studentId));
-        const attendance = upsertAttendance(item.attendance, { date, present, absent });
-
-        return {
-          ...item,
-          attendance,
-        };
-      });
-
-      persist(next);
-    },
-    [classes, persist],
-  );
-
   const markSelfPresent = useCallback(
-    ({ classId, studentId }: { classId: string; studentId: string }) => {
-      const target = classes.find((item) => item.id === classId);
-      if (!target) {
-        return { ok: false, message: "Class not found." };
-      }
-
-      if (!target.students.includes(studentId)) {
-        return { ok: false, message: "You are not enrolled in this class." };
+    ({ classId, name }: { classId: string; name: string }) => {
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        return { ok: false, message: "Please enter your name." };
       }
 
       const today = todayDateISO();
-      const existing = target.attendance.find((record) => record.date === today);
-      if (existing?.present.includes(studentId)) {
-        return { ok: false, message: "Attendance already marked for today." };
+      const existingRecords = attendanceStore[classId] ?? [];
+      const todayRecord = existingRecords.find((r) => r.date === today);
+
+      if (todayRecord?.attendees.some((n) => n.toLowerCase() === trimmedName.toLowerCase())) {
+        return { ok: false, message: "You have already marked your attendance for today." };
       }
 
-      const next = classes.map((item) => {
-        if (item.id !== classId) {
-          return item;
-        }
+      const updatedRecord: AttendanceRecord = {
+        date: today,
+        attendees: [...(todayRecord?.attendees ?? []), trimmedName],
+      };
 
-        const currentRecord: AttendanceRecord =
-          item.attendance.find((record) => record.date === today) ?? {
-            date: today,
-            present: [],
-            absent: item.students,
-          };
+      const updatedRecords = todayRecord
+        ? existingRecords.map((r) => (r.date === today ? updatedRecord : r))
+        : [...existingRecords, updatedRecord];
 
-        const present = Array.from(new Set([...currentRecord.present, studentId]));
-        const absent = item.students.filter((id) => !present.includes(id));
-
-        return {
-          ...item,
-          attendance: upsertAttendance(item.attendance, { date: today, present, absent }),
-        };
-      });
-
-      persist(next);
-      return { ok: true, message: "Attendance marked for today." };
+      persist({ ...attendanceStore, [classId]: updatedRecords });
+      return { ok: true, message: `Attendance marked for ${trimmedName}.` };
     },
-    [classes, persist],
+    [attendanceStore, persist],
   );
 
   const getClassById = useCallback(
@@ -164,29 +73,9 @@ export function ClassroomProvider({ children }: { children: React.ReactNode }) {
     [classes],
   );
 
-  const getClassesForTeacher = useCallback(
-    (teacherId: string) => classes.filter((item) => item.teacherId === teacherId),
-    [classes],
-  );
-
-  const getClassesForStudent = useCallback(
-    (studentId: string) => classes.filter((item) => item.students.includes(studentId)),
-    [classes],
-  );
-
   const value = useMemo(
-    () => ({
-      classes,
-      isReady,
-      createClass,
-      joinClassByCode,
-      markAttendanceByTeacher,
-      markSelfPresent,
-      getClassById,
-      getClassesForTeacher,
-      getClassesForStudent,
-    }),
-    [classes, createClass, getClassById, getClassesForStudent, getClassesForTeacher, isReady, joinClassByCode, markAttendanceByTeacher, markSelfPresent],
+    () => ({ classes, isReady, markSelfPresent, getClassById }),
+    [classes, getClassById, isReady, markSelfPresent],
   );
 
   return <ClassroomContext.Provider value={value}>{children}</ClassroomContext.Provider>;
